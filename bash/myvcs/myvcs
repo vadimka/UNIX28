@@ -23,9 +23,9 @@ status)
 	diff --unified ./.$2/last_file ./$2 > /dev/null
 	if [ $? -eq "0" ]
 	then
-		echo "0"
+		exit 0
 	else
-		echo "1"
+		exit 1
 	fi
 	;;
 diff)
