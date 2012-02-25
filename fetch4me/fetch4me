@@ -1,0 +1,109 @@
+#!/bin/bash -e 
+
+init() {
+#QQEDIR	
+	if [ -z $1 ]
+	then	     
+                if [ -e "./.fetch4merc" ]
+                then
+                        QQEDIR=$(cat ./.fetch4merc | grep QQEDIR | awk '{a=$3; print a}')
+                        if [ -z $QQEDIR  ]
+                        then
+                                mkdir ./.fetch4me
+                                QQEDIR=".fetch4me"
+                        fi
+                else
+                        mkdir ./.fetch4me
+                        QQEDIR=".fetch4me"
+                fi
+
+	else		
+		if [ $1 = "-w" ]
+		then
+			QQEDIR=$2
+			if [ -z $3 ]
+			then
+				echo $3	
+			else
+				if [ $3 = "-r" ]
+				then
+					REFERER=$4
+				fi
+			fi
+		elif [ $1 = "-r" ]
+		then
+			REFERER=$2
+		else
+			if [ -e "./.fetch4merc" ]
+               		then
+                        	QQEDIR=$(cat ./.fetch4merc | grep QQEDIR | awk '{a=$3; print a}')
+                        	if [ -z $QQEDIR  ]
+                        	then
+                                	QQEDIR="fetch4me"
+                        	fi
+                	else
+                        	QQEDIR="fetch4me"
+                	fi
+		fi
+	fi	
+#GETELEMFUNC
+	if [ -e "./.fetch4merc" ]
+	then
+		GETELEMFUNC=$(cat ./.fetch4merc | grep GETELEMFUNC | awk '{a=$3; print a}')
+		if [ -z $GETELEMFUNC ]
+		then
+			GETELEMFUNC="wget"
+		fi
+	else
+		GETELEMFUNC="wget"
+	fi
+}
+
+showUsage() {
+	echo Error!
+	echo Usage:
+	echo "fetch4me [-w <dir>] [-r <referer>] (<url>)*"
+}
+
+createRequests() {
+	if [ ! -e "./.$QQEDIR" ]
+	then
+		mkdir ./.$QQEDIR
+	fi
+
+	echo create
+}
+
+startDaemon() {
+	daemonWork=$((daemonWork+1))
+}
+
+work() {
+	
+	if [ $daemonWork -eq 1 ]
+	then
+		if [ $urlNumber -eq 0 ]
+		then
+			showUsage 
+		else
+			createRequests	
+		fi
+	else
+		createRequests
+		startDaemon
+	fi
+}	
+
+
+out() {
+	echo "QQEDIR:"$QQEDIR
+	echo "GETELEMFUNC:"$GETELEMFUNC
+	echo "REFERER:"$REFERER
+}
+
+daemonWork=0
+urlNumber=0
+
+init "$@"
+work
+out
