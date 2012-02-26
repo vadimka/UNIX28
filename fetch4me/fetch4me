@@ -1,5 +1,26 @@
 #!/bin/bash -e 
 
+Args=($@)
+nmbrArg=$#
+lastArg=0
+declare -a Array
+urlNumber=0
+FORMAT=rqst
+
+killing() {
+	if [ -e ./.$QQEDIR/.daemonID ]
+	then
+		pid=$(cat ./.$QQEDIR/.daemonID)
+		kill -9 $pid
+		rm ./.$QQEDIR/.daemonID
+		echo Daemon killed
+		exit 0
+	else
+		echo "Error! Daemon isn't working"
+		exit 1
+	fi
+}
+
 init() {
 #QQEDIR	
 	if [ -z $1 ]
@@ -10,42 +31,68 @@ init() {
                         if [ -z $QQEDIR  ]
                         then
                                 mkdir ./.fetch4me
-                                QQEDIR=".fetch4me"
+                                QQEDIR="fetch4me"
                         fi
                 else
                         mkdir ./.fetch4me
-                        QQEDIR=".fetch4me"
+                        QQEDIR="fetch4me"
                 fi
-
+		
 	else		
 		if [ $1 = "-w" ]
 		then
 			QQEDIR=$2
 			if [ -z $3 ]
 			then
-				echo $3	
+				REFERER=""
+				lastArg=2	
 			else
 				if [ $3 = "-r" ]
 				then
 					REFERER=$4
-				fi
+					lastArg=4
+				fi					
 			fi
-		elif [ $1 = "-r" ]
-		then
-			REFERER=$2
-		else
+		else 	
 			if [ -e "./.fetch4merc" ]
                		then
                         	QQEDIR=$(cat ./.fetch4merc | grep QQEDIR | awk '{a=$3; print a}')
                         	if [ -z $QQEDIR  ]
                         	then
-                                	QQEDIR="fetch4me"
+                                	mkdir ./.fetch4me
+					QQEDIR="fetch4me"
                         	fi
                 	else
-                        	QQEDIR="fetch4me"
+                        	mkdir ./.fetch4me
+				QQEDIR="fetch4me"
                 	fi
+			
+			if [ $1 = "-r" ]
+			then
+				REFERER=$2
+				lastArg=2
+			else
+				REFERER=""
+			fi
+			
+			if [ $1 = "-kill" ]
+			then
+				if [ -e ./.$QQEDIR/.daemonID ]
+				then
+					pid=$(cat ./.$QQEDIR/.daemonID)
+					kill -9 $pid
+					rm ./.$QQEDIR/.daemonID
+					echo "Daemon quit"
+					exit 0
+				else
+					echo "Error: daemon isn't exist"
+					exit 1
+				fi
+			fi
 		fi
-	fi	
+	fi
+	#	else 
+	#fi	
 #GETELEMFUNC
 	if [ -e "./.fetch4merc" ]
 	then
@@ -57,40 +104,112 @@ init() {
 	else
 		GETELEMFUNC="wget"
 	fi
+
+	urlNumber=$(($nmbrArg-$lastArg))
+	DLDPATH="./Downloads/fetched4you"
+	
+	if [ -e "./Downloads" ]
+	then
+		if [ ! -e "$DLDPATH" ]
+		then
+			mkdir $DLDPATH
+		fi
+	else
+		mkdir ./Downloads
+		mkdir $DLDPATH
+	fi
+	#echo lastArg=$lastArg	
+	#echo urlNmbr=$urlNumber
 }
 
 showUsage() {
 	echo Error!
 	echo Usage:
 	echo "fetch4me [-w <dir>] [-r <referer>] (<url>)*"
+	echo To kill daemon:
+	echo "fetch4me -kill"
 }
 
 createRequests() {
 	if [ ! -e "./.$QQEDIR" ]
 	then
 		mkdir ./.$QQEDIR
-	fi
-
-	echo create
+	fi	
+	echo $urlNumber	
+	for ((i=0;i<$urlNumber;i++))
+	do
+		url=${Args[$lastArg]}
+		#echo $url
+		lastArg=$((lastArg+1))
+		tempName=$(echo $url | sed 's/\//_/g' | sed 's/://g')
+		#echo $tempName
+		echo "$url $REFERER">.$QQEDIR/$tempName.$FORMAT
+		Array[$i]=./.$QQEDIR/$tempName.$FORMAT
+		echo ${Array[$i]}
+	done
+	echo after create ${#Array[@]}
 }
 
-startDaemon() {
-	daemonWork=$((daemonWork+1))
+starting() {
+	#echo Daemon starting...
+	
+#	exec >/dev/null
+#	exec 2>/dev/null
+
+	trap '' TERM
+	trap '' HUP
+
+	loop &
+
+	#echo daemonID = $!
+	echo $!>./.$QQEDIR/.daemonID
+}
+
+loop() {
+	while true
+	do
+		downloading
+	#	removing
+		sleep 10
+	done
+}
+
+downloading() {
+	echo Daemon start downloading...
+	nmbrOfArr=${#Array[@]}
+	echo hm= $nmbrOfArr
+	for ((i=0;i<$nmbrOfArr;i++))
+	do
+		echo "${Array[$i]}">./.$QQEDIR/.queue
+		urlReff=$(awk '{a=$2; print a'} ${Array[$i]})
+		urlAddr=$(awk '{a=$1; print a'} ${Array[$i]})
+		echo "Downloading $urlAddr with refere $urlReff">./.$QQEDIR/.status
+		if $GETELEMFUNC -q -c -P $DLDPATH/$urlReff/$urlAddr --referer=$urlReff $urlAddr
+		then
+			echo "$(date) $urlReff $urlAddr finished">>./.$QQEDIR/.finished
+		else
+			echo "$(date) $urlRedd $urlAddr failed">>./.$QQEDIR/.finished
+		fi
+		echo "">./.$QQEDIR/.status
+		rm ${Array[$i]}
+		unset Array[$i]
+	done
 }
 
 work() {
 	
-	if [ $daemonWork -eq 1 ]
+	if [ -e "./.$QQEDIR/.daemonID" ]
 	then
 		if [ $urlNumber -eq 0 ]
 		then
 			showUsage 
 		else
-			createRequests	
+			echo haha			
+			createRequests 	
 		fi
 	else
 		createRequests
-		startDaemon
+		starting 
 	fi
 }	
 
@@ -101,9 +220,7 @@ out() {
 	echo "REFERER:"$REFERER
 }
 
-daemonWork=0
-urlNumber=0
 
 init "$@"
-work
+work  
 out
