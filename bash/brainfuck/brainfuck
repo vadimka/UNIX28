@@ -1,0 +1,83 @@
+#!/bin/bash
+
+declare -a Array
+declare -a TempArr
+p=0
+i=0
+
+for ((i=0;i<30000;i++))
+do
+	Array[$i]=0
+done
+
+k=1
+while read -n1 c; do
+	TempArr[$k]=$c
+#	echo $c
+	k=$(($k+1))
+done < $1
+
+symNmbr=$((${#TempArr[@]}-1))
+
+#echo Количество символов= $symNmbr
+#echo Последний элемент: ${TempArr[$symNmbr]}
+#echo Первый элемент: ${TempArr[1]}
+
+
+j=1
+while [ $j -le $symNmbr ]; do
+	
+	
+#	echo ${TempArr[$j]}	
+	case ${TempArr[$j]} in
+	'<')
+#		echo Small
+		p=$((p-1))
+		j=$((j+1))
+		;;
+	'>')
+#		echo Big
+		p=$((p+1))
+		j=$((j+1))
+		;;
+	'+')
+#		echo Plus
+		Array[$p]=$((${Array[$p]}+1))
+		j=$((j+1))
+#		echo ${TempArr[$j]}
+		;;
+	'-')
+#		echo Minus
+		Array[$p]=$((${Array[$p]}-1))
+		j=$((j+1))
+		;;
+	'.')
+#		echo Print
+		printf \\$(printf '%03o' ${Array[$p]})
+		j=$((j+1))
+		;;
+	',')
+		
+		;;
+	'[')	
+		pTemp=$p
+		j=$((j+1))
+		posForCycle=$j
+		#j=$((j+1))
+		;;
+	']')
+#		echo Our position ${Array[$pTemp]}
+		if [ ${Array[$pTemp]} -eq 0 ] 
+		then
+			j=$((j+1))
+#			echo Cycle finished
+#			echo $j
+#			echo ${TempArr[$j]}
+		else
+			j=$posForCycle
+		fi
+		;;
+	esac
+	
+	
+done
