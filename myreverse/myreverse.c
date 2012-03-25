@@ -1,5 +1,4 @@
 #include <unistd.h>
-
 #define BSIZE 10
 
 void reverse(char *buffer, int size) {
