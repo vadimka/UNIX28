@@ -1,0 +1,146 @@
+#!/bin/bash
+
+#echo "We starting work..."
+#echo "Usage:"
+#echo "./database dbFile [command] [parameters]"
+#echo "Commands:"
+#echo "* select"
+#echo "* insert"
+#echo "* delete"
+#echo "* join with"
+
+declare -a Columns
+declare -a Lines
+declare -a deLines
+declare Elements
+declare tempArray
+declare tempArr
+countTemp=0
+countColumns=0
+countLines=0
+countDeLines=0
+countElements=0
+dbFile=$1
+touch $dbFile
+shift;
+
+if [ -z $1 ]; then
+	echo "I don't know, what to do..."
+
+elif [ $1 == "select" ]; then
+	shift
+	while [ $# -ne 0 ]; do
+		case $1 in
+			line)
+				shift
+			while [ $# -ne 0 ]; do 
+					Lines[$countLines]=$1
+					countLines=$((countLines+1))
+					shift	
+				done
+				for ((i=0;i<${#Lines[@]};i++)) do
+			                tempArray=(`cat -n $dbFile | grep "^ *${Lines[$i]}" | sed "s/^ *${Lines[$i]}\t//"`)
+					for ((j=0;j<${#Columns[@]};j++)) do
+						if [ -z resultSel ]; then
+							resultSel=${tempArray[$((${Columns[$j]}-1))]} 
+						else
+							resultSel=${resultSel}$'\t'${tempArray[$((${Columns[$j]}-1))]}
+						fi
+					done
+					echo $resultSel
+					resultSel=''
+				done
+				;;
+			where)	
+				shift
+				whereColumn=$1
+				whereColumn=$((whereColumn-1))
+				cat $dbFile | grep $3 > /tmp/dbtemp
+				linesNmbr=$(cat /tmp/dbtemp | wc -l)
+				for ((i=1;i<=linesNmbr;i++)) do
+			                tempArray=(`cat -n /tmp/dbtemp | grep "^ *$i" | sed "s/^ *$i\t//"`)
+					if [ ${tempArray[$whereColumn]} = $3 ]; then
+					for ((j=0;j<${#Columns[@]};j++)) do
+						if [ -z resultSel ]; then
+							resultSel=${tempArray[$((${Columns[$j]}-1))]}
+						else
+							resultSel=${resultSel}$'\t'${tempArray[$((${Columns[$j]}-1))]}
+						fi
+					done
+					echo $resultSel
+					resultSel=''
+					fi
+				done
+				;;
+			[0-9]*)
+				Columns[$countColumns]=$1
+				countColumns=$((countColumns+1))
+				;;
+		esac
+		shift
+	done
+
+elif [ $1 == "join" ]; then
+	shift
+	shift
+	joinFile=$1
+	Column1=$2
+	Column1=$((Column1-1))
+	Column2=$4
+	linesNmbrDB=$(cat $dbFile | wc -l)
+	for ((i=1;i<=$linesNmbrDB;i++)) do
+		tempArray=(`cat -n $dbFile | grep "^ *$i" | sed "s/^ *$i\t//"`)
+
+		cat $joinFile | grep ${tempArray[$Column1]} > /tmp/tmpJoin
+		linesNmbrJN=$(cat /tmp/tmpJoin | wc -l)
+		for ((j=1;j<=$linesNmbrJN;j++)) do
+			tempArr=(`cat -n /tmp/tmpJoin | grep $j`)
+			if [ ${tempArr[$Column2]} = ${tempArray[$Column1]} ]; then
+				for ((l=0;l<${#tempArray[@]};l++)) do
+					if [ -z resultJoin ]; then
+						resultJoin=${tempArray[$l]}
+					else
+						resultJoin=${resultJoin}$'\t'${tempArray[$l]}
+					fi
+				done
+				for ((l=1;l<${#tempArr[@]};l++)) do
+					resultJoin=${resultJoin}$'\t'${tempArr[$l]}
+				done
+			fi 
+			echo $resultJoin
+			resultJoin=''
+		done
+	done
+
+elif [ $1 == "insert" ]; then
+	shift
+	while [ $# -ne 0 ]; do
+		Elements[$countElements]=$1
+		countElements=$((countElements+1))
+		shift	
+	done
+
+	for ((i=0;i<${#Elements[@]};i++)) do
+		if [ -z resultIn ]; then
+			resultIn=${Elements[$i]}
+		else
+			resultIn=${resultIn}$'\t'${Elements[$i]}
+		fi
+	done
+	echo "$resultIn" >> $dbFile
+
+elif [ $1 == "delete" ]; then
+	shift
+	while [ $# -ne 0 ]; do
+		deLines[$countDeLines]=$1
+		countDeLines=$((countDeLines+1))
+		shift
+	done
+	for ((i=0;i<${#deLines[@]};i++))
+	do
+		cat -n $dbFile | grep "^ *${deLines[$i]}" | sed "s/^ *${deLines[$i]}\t//" > /tmp/dbdelete
+		diff $dbFile /tmp/dbdelete | grep "^<" | sed "s/< //" > /tmp/dbdelete2
+		cp /tmp/dbdelete2 $dbFile
+	done
+fi
+
